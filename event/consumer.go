@@ -137,7 +137,11 @@ func handlePayload(payload Payload) {
 	case "post.deleted":
 		fmt.Println("post deleted")
 	case "post.updated":
-		fmt.Println("post updated")
+		err := postUpdated(payload)
+		if err != nil {
+			fmt.Println("142-consumer.go " + err.Error())
+			fmt.Println(err)
+		}
 	default:
 		err := fmt.Errorf("unknown event: %s", payload.Type)
 		if err != nil {
@@ -149,6 +153,11 @@ func handlePayload(payload Payload) {
 // func logEvent(payload Payload) is for logging the event to the database (using the event-service)
 
 type PostCreatedPayload struct {
+	Id_user int    `json:"id_user"`
+	Content string `json:"content"`
+}
+
+type PostUpdatePayload struct {
 	Id_user int    `json:"id_user"`
 	Content string `json:"content"`
 }
@@ -184,6 +193,39 @@ func postCreated(payload Payload) error {
 
 	if response.StatusCode != http.StatusCreated {
 
+		return errors.New("unexpected status from post-service: " + response.Status)
+	}
+
+	return nil
+}
+
+func postUpdated(payload Payload) error {
+	payloadPost := PostUpdatePayload{
+		Id_user: payload.Id_user,
+		Content: payload.Content,
+	}
+
+	jsonDat, _ := json.MarshalIndent(payloadPost, "", "\t")
+
+	request, err := http.NewRequest("PUT", "http://post-service/v1/post/"+string(payload.Id_user), bytes.NewBuffer(jsonDat))
+
+	if err != nil {
+		return err
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+
+	response, err := client.Do(request)
+
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusCreated {
 		return errors.New("unexpected status from post-service: " + response.Status)
 	}
 
